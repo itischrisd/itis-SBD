@@ -5,7 +5,7 @@
   SBD (Database Systems)
 </h1>
 
-Repository that contains final project and solutions to the exercises for the SBD (Database Systems) PL-SQL and Transtact-DQL practical classes taught by Krzysztof Bajszczak during studies on [PJAIT](https://www.pja.edu.pl/en/).
+Repository that contains final project and solutions to the exercises for the SBD (Database Systems) PL-SQL and Transtact-SQL practical classes taught by Krzysztof Bajszczak during studies on [PJAIT](https://www.pja.edu.pl/en/).
 
 The following code is distributed under the [GPLv3](./LICENSE).
 
