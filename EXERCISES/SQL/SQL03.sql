@@ -1,98 +1,75 @@
--- 1. Utwórz wyzwalacz, który nie pozwoli usunąć rekordu z tabeli Emp.
+-- 1. Wypisz gości wraz z liczbą dokonanych przez nich rezerwacji. Nie wypisuj informacji o gościach, którzy złożyli tylko jedną rezerwację.
 
-CREATE OR REPLACE TRIGGER PL03ZAD01
-    BEFORE DELETE
-    ON EMP
-BEGIN
-    RAISE_APPLICATION_ERROR(-20500, 'Usuwanie zablokowane');
-END;
+SELECT imie, nazwisko, COUNT(*)
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+GROUP BY gosc.idgosc, imie, nazwisko
+HAVING COUNT(*) > 1;
 
--- 2. Utwórz wyzwalacz, który przy wstawianiu lub modyfikowaniu danych w tabeli Emp sprawdzi czy nowe zarobki (wstawiane
--- lub modyfikowane) są większe niż 1000. W przeciwnym przypadku wyzwalacz powinien zgłosić błąd i nie dopuścić do
--- wstawienia rekordu. Uwaga: Ten sam efekt można uzyskać łatwiej przy pomocy więzów spójności typu CHECK. Użyjmy
--- wyzwalacza w celach treningowych.
+-- 2. Wypisz pokoje o największej liczbie miejsc.
 
-CREATE OR REPLACE TRIGGER PL03ZAD02
-    BEFORE INSERT OR UPDATE
-    ON EMP
-    FOR EACH ROW
-BEGIN
-    IF :NEW.sal < 1000 THEN
-        RAISE_APPLICATION_ERROR(-20500, 'Zarobki nie moga byc ponizej 1000!');
-    END IF;
-END;
+SELECT nrpokoju
+FROM pokoj
+WHERE liczba_miejsc = (SELECT MAX(liczba_miejsc) FROM pokoj);
 
-INSERT INTO EMP
-VALUES ((SELECT NVL(MAX(EMPNO) + 1, 1) FROM EMP), 'Kowalski', NULL, NULL, CURRENT_DATE, 1000, NULL, 10);
+-- 3. Dla każdego pokoju wypisz, kiedy był ostatnio wynajmowany.
 
--- 3. Utwórz tabelę budzet: CREATE TABLE budzet (wartosc INT NOT NULL) W tabeli tej będzie przechowywana łączna wartość
--- wynagrodzenia wszystkich pracowników. Tabela będzie zawsze zawierała jeden wiersz. Należy najpierw obliczyć
--- początkową wartość zarobków: INSERT INTO budzet (wartosc) SELECT SUM(sal) FROM emp Utwórz wyzwalacz, który będzie
--- pilnował, aby wartość w tabeli budzet była zawsze aktualna, a więc przy wszystkich operacjach aktualizujących tabelę
--- emp (INSERT, UPDATE, DELETE), wyzwalacz będzie aktualizował wpis w tabeli budżet.
+SELECT nrpokoju, MAX(dataod)
+FROM rezerwacja
+GROUP BY nrpokoju;
 
-CREATE TABLE Budzet
-(
-    wartos INT NOT NULL
-);
+-- 4. Wypisz liczbę rezerwacji dla każdego pokoju. Nie wypisuj pokoi, które były rezerwowane tylko raz oraz pokoi z kategorii „luksusowy”.
 
-INSERT INTO Budzet
-VALUES ((SELECT SUM(sal) FROM EMP));
+SELECT pokoj.nrpokoju, COUNT(*)
+FROM rezerwacja
+         INNER JOIN pokoj ON rezerwacja.nrpokoju = pokoj.nrpokoju
+WHERE idkategoria != (SELECT idkategoria FROM kategoria WHERE nazwa = 'Luksusowy')
+GROUP BY pokoj.nrpokoju
+HAVING COUNT(*) > 1;
 
-CREATE OR REPLACE TRIGGER PL03ZAD03
-    BEFORE INSERT OR UPDATE OR DELETE
-    ON EMP
-BEGIN
-    UPDATE Budzet SET wartos = (SELECT SUM(sal) FROM EMP);
-END;
+-- 5. Podaj dane (imię, nazwisko, numer pokoju) najnowszej rezerwacji.
 
--- 4. Napisz jeden wyzwalacz, który:
--- · Nie pozwoli usunąć pracownika, którego pensja jest większa od 0.
--- · Nie pozwoli zmienić nazwiska pracownika.
--- · Nie pozwoli wstawić pracownika, który już istnieje (sprawdzając po nazwisku).
+SELECT imie, nazwisko, nrpokoju
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE dataod = (SELECT MAX(dataod) FROM rezerwacja);
 
-CREATE OR REPLACE TRIGGER PL03ZAD04
-    BEFORE INSERT OR UPDATE OR DELETE
-    ON EMP
-    FOR EACH ROW
-DECLARE
-    v_count INT;
-BEGIN
-    IF INSERTING THEN
-        SELECT COUNT(*) INTO v_count FROM EMP WHERE ENAME = :NEW.ENAME;
-        IF v_count > 0 THEN
-            RAISE_APPLICATION_ERROR(-20500, 'Pracownik o tym nazwisku juz istnieje!');
-        END IF;
-    ELSIF UPDATING AND :NEW.ename != :OLD.ename THEN
-        :NEW.SAL := :OLD.SAL;
-    ELSIF :OLD.sal > 0 THEN
-        RAISE_APPLICATION_ERROR(-20500, 'Nie wolno usuwac pracownika z niezerowa pensja!');
-    END IF;
-END;
+-- 6. Wypisz dane pokoju, który nie był nigdy wynajmowany.
 
-INSERT INTO EMP
-VALUES ((SELECT NVL(MAX(EMPNO) + 1, 1) FROM EMP), 'Kowalski', NULL, NULL, CURRENT_DATE, 1000, NULL, 10);
+SELECT *
+FROM pokoj
+WHERE nrpokoju NOT IN (SELECT nrpokoju FROM rezerwacja);
 
-UPDATE EMP
-SET ENAME = 'Malinowsi'
-WHERE EMPNO = 7938;
+-- 7. Używając operatora NOT EXISTS wypisz gości, którzy nigdy nie wynajmowali pokoju luksusowego.
 
-DELETE
-FROM EMP
-WHERE EMPNO = 7938;
+SELECT *
+FROM gosc
+WHERE NOT EXISTS (SELECT 1
+                  FROM rezerwacja
+                           INNER JOIN pokoj ON rezerwacja.nrpokoju = pokoj.nrpokoju
+                           INNER JOIN kategoria ON pokoj.idkategoria = kategoria.idkategoria
+                  WHERE nazwa = 'Luksusowy'
+                    AND rezerwacja.idgosc = gosc.idgosc);
 
--- 5. Napisz wyzwalacz, który:
--- · Nie pozwoli zmniejszać pensji.
--- · Nie pozwoli usuwać pracowników.
+-- 8. W jednym zapytaniu wypisz gości, którzy wynajmowali pokój 101 (imię, nazwisko, data rezerwacji) oraz gości, którzy nigdy nie wynajmowali żadnego pokoju (imię, nazwisko, ‘brak’).
 
-CREATE OR REPLACE TRIGGER PL03ZAD05
-    BEFORE UPDATE OR DELETE
-    ON EMP
-    FOR EACH ROW
-BEGIN
-    IF UPDATING AND :NEW.SAL < :OLD.SAL THEN
-        :NEW.SAL := :OLD.SAL;
-    ELSIF DELETING THEN
-        RAISE_APPLICATION_ERROR(-20500, 'Nie wolno usuwać pracowników');
-    END IF;
-END;
+SELECT imie, nazwisko, NVL(TO_CHAR(dataod), 'brak') AS "Data"
+FROM gosc
+         LEFT JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE idrezerwacja IS NULL
+   OR nrpokoju = 101;
+
+-- 9. Znajdź kategorię, w której liczba pokoi jest największa.
+
+SELECT nazwa
+FROM kategoria
+         INNER JOIN pokoj ON kategoria.idkategoria = pokoj.idkategoria
+GROUP BY nazwa
+HAVING COUNT(*) = (SELECT MAX(COUNT(*)) FROM pokoj GROUP BY idkategoria);
+
+-- 10. Dla każdej kategorii podaj pokój o największej liczbie miejsc.
+
+SELECT nazwa, nrpokoju
+FROM kategoria
+         INNER JOIN pokoj ON kategoria.idkategoria = pokoj.idkategoria
+WHERE liczba_miejsc = (SELECT MAX(liczba_miejsc) FROM pokoj WHERE idkategoria = kategoria.idkategoria);

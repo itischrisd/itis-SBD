@@ -1,146 +1,136 @@
-DECLARE
-    CURSOR kursor IS SELECT ENAME, SAL
-                     FROM EMP;
-    wiersz kursor%ROWTYPE;
-BEGIN
-    OPEN kursor;
-    LOOP
-        FETCH kursor INTO wiersz;
-        EXIT WHEN kursor%NOTFOUND;
-        DBMS_OUTPUT.PUT_LINE(wiersz.ENAME || ' zarabia ' || wiersz.SAL);
-    end loop;
-    CLOSE kursor;
-end;
+-- 1. Wypisz wszystkich klientów hotelu w kolejności alfabetycznej (sortując po nazwisku i imieniu).
 
-BEGIN
-    FOR wiersz IN (SELECT ENAME, SAL FROM EMP)
-        LOOP
-            DBMS_OUTPUT.PUT_LINE(wiersz.ENAME || ' zarabia ' || wiersz.SAL);
-        end loop;
-end;
+SELECT imie, nazwisko
+FROM gosc
+ORDER BY nazwisko, imie;
 
-CREATE OR REPLACE TRIGGER trigger1
-    BEFORE DELETE
-    ON EMP
-BEGIN
-    raise_application_error(-20500, 'Nie mozna usuwac');
-end;
+-- 2. Podaj bez powtórzeń wszystkie występujące w tabeli wartości rabatu posortowane malejąco.
 
-CREATE OR REPLACE TRIGGER trigger1
-    BEFORE DELETE OR INSERT
-    ON EMP
-    FOR EACH ROW
-BEGIN
-    IF INSERTING THEN
-        IF :NEW.sal < 1000 THEN
-            :NEW.sal := 1000;
-        end if;
-    ELSIF DELETING THEN
-        IF :OLD.sal > 5000 THEN
-            raise_application_error(-20500, 'Nie mozna usuwac');
-        end if;
-    end if;
-end;
+SELECT DISTINCT procent_rabatu
+FROM gosc
+WHERE procent_rabatu IS NOT NULL
+ORDER BY procent_rabatu DESC;
 
--- 1. Przy pomocy kursora przejrzyj wszystkich pracowników i zmodyfikuj wynagrodzenia tak, aby osoby zarabiające mniej
--- niż 1000 miały zwiększone wynagrodzenie o 10%, natomiast osoby zarabiające powyżej 1500 miały zmniejszone wynagrodzenie
--- o 10%. Wypisz na ekran każdą wprowadzoną zmianę.
+-- 3. Wypisz wszystkie rezerwacje Ferdynanda Kiepskiego.
 
-DECLARE
-    CURSOR c_emp IS SELECT EMPNO, ENAME, SAL
-                     FROM EMP;
-    r_emp c_emp%ROWTYPE;
-BEGIN
-    OPEN c_emp;
-    LOOP
-        FETCH c_emp INTO r_emp;
-        EXIT WHEN c_emp%NOTFOUND;
-        IF r_emp.SAL < 1000 THEN
-            UPDATE EMP SET SAL = r_emp.SAL * 1.1 WHERE EMPNO = r_emp.EMPNO;
-			DBMS_OUTPUT.PUT_LINE(r_emp.ENAME || ' zarabia teraz wiecej - ' || r_emp.SAL);
-        ELSIF r_emp.SAL > 1500 THEN
-            UPDATE EMP SET SAL = r_emp.SAL * 0.9 WHERE EMPNO = r_emp.EMPNO;
-			DBMS_OUTPUT.PUT_LINE(r_emp.ENAME || ' zarabia teraz mniej - ' || r_emp.SAL);
-        end if;   
-    end loop;
-    CLOSE c_emp;
-end;
+SELECT *
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE imie = 'Ferdynand'
+  AND nazwisko = 'Kiepski';
 
--- 2. Przerób kod z zadania 1 na procedurę tak, aby wartości zarobków (1000 i 1500) nie były stałe, tylko były
--- parametrami procedury.
+-- 4. Wypisz rezerwacje z 2008 roku klientów, których nazwisko zaczyna się na literę „K” lub „L”. Podaj imię, nazwisko
+-- oraz numer pokoju.
 
-CREATE OR REPLACE PROCEDURE PL02ZAD02(losal NUMBER, hisal NUMBER) AS
-    CURSOR c_emp IS SELECT EMPNO, ENAME, SAL
-                     FROM EMP;
-    r_emp c_emp%ROWTYPE;
-BEGIN
-    OPEN c_emp;
-    LOOP
-        FETCH c_emp INTO r_emp;
-        EXIT WHEN c_emp%NOTFOUND;
-        IF r_emp.SAL < losal THEN
-            UPDATE EMP SET SAL = r_emp.SAL * 1.1 WHERE EMPNO = r_emp.EMPNO;
-			DBMS_OUTPUT.PUT_LINE(r_emp.ENAME || ' zarabia teraz wiecej - ' || r_emp.SAL);
-        ELSIF r_emp.SAL > hisal THEN
-            UPDATE EMP SET SAL = r_emp.SAL * 0.9 WHERE EMPNO = r_emp.EMPNO;
-			DBMS_OUTPUT.PUT_LINE(r_emp.ENAME || ' zarabia teraz mniej - ' || r_emp.SAL);
-        end if;
-    end loop;
-    CLOSE c_emp;
-end;
+SELECT *
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE EXTRACT(YEAR FROM dataod) = 2008
+  AND (nazwisko LIKE 'K%' OR nazwisko LIKE 'L%');
 
-CALL PL02ZAD02(900, 1600);
+-- 5. Wypisz numery pokoi wynajmowanych przez Andrzeja Nowaka.
 
--- 3. W procedurze sprawdź średnią wartość zarobków z tabeli EMP z działu określonego parametrem procedury.
--- Następnie należy dać prowizję (comm) tym pracownikom tego działu, którzy zarabiają poniżej średniej.
--- Prowizja powinna wynosić 5% ich miesięcznego wynagrodzenia.
+SELECT DISTINCT nrpokoju
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE imie = 'Andrzej'
+  AND nazwisko = 'Nowak';
 
-CREATE OR REPLACE PROCEDURE PL02ZAD03(v_deptno NUMBER) AS
-    CURSOR c_emp IS SELECT EMPNO, SAL, COMM
-                     FROM EMP
-                     WHERE DEPTNO = v_deptno;
-    r_emp    c_emp%ROWTYPE;
-    v_avg_sal NUMBER;
-BEGIN
-    SELECT AVG(SAL) INTO v_avg_sal FROM EMP WHERE DEPTNO = v_deptno;
-    OPEN c_emp;
-    LOOP
-        FETCH c_emp INTO r_emp;
-        EXIT WHEN c_emp%NOTFOUND;
-        IF r_emp.SAL < v_avg_sal THEN
-            UPDATE EMP SET COMM = NVL(COMM, 0) + r_emp.SAL * 0.05 WHERE EMPNO = r_emp.EMPNO;
-        end if;
-    end loop;
-    CLOSE c_emp;
-end;
+-- 6. Podaj liczbę pokoi w każdej kategorii.
 
-CALL PL02ZAD03(10);
+SELECT nazwa, COUNT(*)
+FROM kategoria
+         INNER JOIN pokoj ON kategoria.idkategoria = pokoj.idkategoria
+GROUP BY nazwa;
 
--- 4. (bez kursora) Utwórz tabelę Magazyn (IdPozycji, Nazwa, Ilosc) zawierającą ilości poszczególnych towarów w magazynie
--- i wstaw do niej kilka przykładowych rekordów. W bloku PL/SQL sprawdź, którego artykułu jest najwięcej w magazynie
--- i zmniejsz ilość tego artykułu o 5 (jeśli stan jest większy lub równy 5, w przeciwnym wypadku zgłoś błąd).
+-- 7. Podaj dane klientów oraz ich rezerwacji tak, aby klient został wypisany nawet, jeśli nigdy nie rezerwował pokoju.
 
-DECLARE
-    v_max_ilosc NUMBER(3);
-BEGIN
-    SELECT MAX(Ilosc) INTO v_max_ilosc FROM Magazyn;
-    IF v_max_ilosc >= 5 THEN
-        UPDATE Magazyn SET Ilosc = Ilosc - 5 WHERE Ilosc = v_max_ilosc;
-    ELSE
-        DBMS_OUTPUT.PUT_LINE('Za malo towarow w magazynie!');
-    END IF;
-END;
+SELECT *
+FROM gosc
+         LEFT JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc;
 
--- 5. Przerób kod z zadania 4 na procedurę, której będziemy mogli podać wartość, o którą zmniejszamy stan (zamiast
--- wpisanego „na sztywno” 5).
+-- 8. Wypisz klientów, którzy spali w pokoju 101 i zapłacili.
 
-CREATE OR REPLACE PROCEDURE PL02ZAD05(v_subtract NUMBER) AS
-    v_max_ilosc NUMBER(3);
-BEGIN
-    SELECT MAX(Ilosc) INTO v_max_ilosc FROM Magazyn;
-    IF v_max_ilosc >= 5 THEN
-        UPDATE Magazyn SET Ilosc = Ilosc - v_subtract WHERE Ilosc = v_max_ilosc;
-    ELSE
-        DBMS_OUTPUT.PUT_LINE('Za malo towarow w magazynie!');
-    END IF;
-END;
+SELECT imie, nazwisko
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE nrpokoju = 101
+  AND zaplacona = 1;
+
+-- 9. Wypisz dane w postaci: Nazwisko i imię (w jednej kolumnie), DataOd, DataDo, NrPokoju, nazwa kategorii.
+
+SELECT nazwisko || ' ' || imie, dataod, datado, pokoj.nrpokoju, nazwa
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+         INNER JOIN pokoj ON rezerwacja.nrpokoju = pokoj.nrpokoju
+         INNER JOIN kategoria ON pokoj.idkategoria = kategoria.idkategoria;
+
+-- 10. Wypisz w jednym zapytaniu gości, którzy zarezerwowali pokój 101, mających nazwisko na literę „K” oraz tych,
+-- którzy zarezerwowali pokój 201, ale mających nazwisko na literę „P”.
+
+SELECT DISTINCT imie, nazwisko
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE (nrpokoju = 101 AND nazwisko LIKE 'K%')
+   OR (nrpokoju = 201 AND nazwisko LIKE 'P%');
+
+-- 11. Wypisz dane klientów, którzy nie mają rabatu (NULL) i wynajęli jakikolwiek pokój.
+
+SELECT DISTINCT imie, nazwisko
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE procent_rabatu IS NULL;
+
+-- 12. Wypisz dane wszystkich rezerwacji pokoi: 101, 102, 103, 104. Podaj imię, nazwisko i datę.
+
+SELECT imie, nazwisko, dataod, datado
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE nrpokoju IN (101, 102, 103, 104);
+
+-- 13. Podaj kategorie z przedziału cenowego <10,100>.
+
+SELECT nazwa
+FROM kategoria
+WHERE cena BETWEEN 10 AND 100;
+
+-- 14. Wypisz imiona i nazwiska (w jednej kolumnie) klientów, którzy zalegają z płatnościami (pole „zaplacona” = 0).
+-- Kolumnie z danymi klienta nadaj etykietę „dłużnik”. Posortuj w pierwszej kolejności po nazwiskach, a w drugiej po
+-- imionach.
+
+SELECT DISTINCT imie || ' ' || nazwisko AS "Dluznik"
+FROM gosc
+         INNER JOIN rezerwacja ON gosc.idgosc = rezerwacja.idgosc
+WHERE zaplacona = 0
+ORDER BY nazwisko, imie;
+
+-- 15. Podaj, ile jest łącznie rezerwacji zapłaconych.
+
+SELECT COUNT(*)
+FROM rezerwacja
+WHERE zaplacona = 1;
+
+-- 16. Wypisz, ile rezerwacji zostało złożonych w 2009 roku.
+
+SELECT COUNT(*)
+FROM rezerwacja
+WHERE EXTRACT(YEAR FROM dataod) = 2009;
+
+-- 17. Wstaw do bazy danych nowego gościa (wymyśl dowolne dane) oraz rezerwację dla niego.
+
+INSERT INTO gosc
+VALUES (1111, 'Test', 'Testowy', NULL);
+INSERT INTO rezerwacja
+VALUES (1111, TO_DATE('01-04-2023', 'DD-MM-YYYY'), TO_DATE('07-04-2023', 'DD-MM-YYYY'), 1111, 101, 1);
+
+-- 18. Zmień dowolnie datę zakończenia wybranej rezerwacji.
+
+UPDATE rezerwacja
+SET datado = TO_DATE('08-04-2023', 'DD-MM-YYYY')
+WHERE idrezerwacja = 1111;
+
+-- 19. Usuń wybraną rezerwację.
+
+DELETE
+FROM rezerwacja
+WHERE idrezerwacja = 1111;
