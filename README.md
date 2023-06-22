@@ -2,7 +2,7 @@
   <div>
     <img width="80" src="https://raw.githubusercontent.com/bibixx/PJATK/22b9f2f9ea695c9c8e2da79a1e04b79dc9e8871a/logo.svg" alt="" />
   </div>
-  SBD exercises solutions
+  SBD (Database Systems)
 </h1>
 
 Repository that contains final project and solutions to the exercises for the SBD (Database Systems) PL-SQL and Transtact-DQL practical classes taught by Krzysztof Bajszczak during studies on [PJAIT](https://www.pja.edu.pl/en/).
