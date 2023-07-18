@@ -1,7 +1,3 @@
--- 1. Stwórz procedurę, która przyjmuje jako parametr nazwę produktu. Procedura ta powinna wyliczać ile razy dany produkt
--- został sprzedany. Liczba sprzedaży powinna zostać zwrócona jako parametr typu OUTPUT (Pojedyncza sprzedaż liczy się raz,
--- niezależnie w jakiej ilości został produkt sprzedany). (2p)
-
 CREATE PROCEDURE zad1 @nazwa VARCHAR(20),
                       @ilosc INT = 0 OUTPUT
 AS
@@ -12,8 +8,6 @@ BEGIN
     WHERE p.NAZWA = @nazwa;
 END
 GO
-
--- 2. Stwórz wyzwalacz, który nie pozwoli wykonać operacji UPDATE, jeśli modyfikowany jest jakiś klient, który coś kupował. (2p)
 
 CREATE TRIGGER zad2
     ON KLIENT
@@ -28,10 +22,6 @@ BEGIN
         END
 END
 GO
-
-
--- 3. Stwórz procedurę, która jako parametr przyjmuje nazwę miasta. Wszyscy pracownicy, którzy są do niego przypisani powinni
--- otrzymać jako swoje miasto wartość NULL. Następnie należy usunąć podane miasto. Jeśli podane miasto nie istnieje, należy wypisać komunikat. (2p)
 
 CREATE PROCEDURE zad3 @miasto VARCHAR(20)
 AS
@@ -49,9 +39,6 @@ BEGIN
         END
 END
 GO
-
--- 4. Stwórz wyzwalacz, który nie pozwoli na wpisanie produktów o nazwach już istniejących. Wyzwalacz powinien zablokować
--- jedynie niepoprawnie wpisywane produkty. (2p)
 
 CREATE TRIGGER zad4
     ON PRODUKT
@@ -74,10 +61,6 @@ BEGIN
     DEALLOCATE kursor;
 END
 GO
-
--- 5. Stwórz procedurę, która przyjmie jako parametry nazwę produktu oraz nazwę kategorii. Następnie podany produkt powinien
--- zostać przypisany do danej kategorii. Jeśli nie istnieje jeszcze taki produkt i/lub kategoria to zostaną wcześniej utworzone.
--- W przypadku konieczności utworzenia produktu, jego cena powinna być równa średniej cenie wszystkich produktów. (2p)
 
 CREATE PROCEDURE zad5 @produkt VARCHAR(20), @kategoria VARCHAR(20)
 AS
